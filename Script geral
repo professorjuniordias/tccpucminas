@@ -1,0 +1,326 @@
+#Data loading####
+install.packages("forecast")
+install.packages("tidyverse")
+install.packages("lubridate")
+install.packages("gridExtra")
+install.packages("plotly")
+# Load required libraries
+library(forecast)
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+library(plotly)
+
+# Load the COVID-19 data from Our World in Data
+our_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv") %>% 
+  select(
+    "location",
+    "date",
+    "total_cases",
+    "new_cases",
+    "total_deaths",
+    "new_deaths",
+    "total_cases_per_million",
+    "new_cases_per_million",
+    "total_deaths_per_million",
+    "new_deaths_per_million",
+    "reproduction_rate",
+    "icu_patients",
+    "icu_patients_per_million",
+    "hosp_patients",
+    "hosp_patients_per_million",
+    "total_vaccinations",
+    "people_vaccinated",
+    "people_fully_vaccinated",
+    "total_boosters",
+    "total_vaccinations_per_hundred",
+    "people_vaccinated_per_hundred",
+    "people_fully_vaccinated_per_hundred",
+    "total_boosters_per_hundred",
+    "median_age",
+    "aged_65_older",
+    "aged_70_older",
+    "cardiovasc_death_rate",
+    "diabetes_prevalence",
+    "female_smokers",
+    "male_smokers",
+    "hospital_beds_per_thousand",
+    "human_development_index",
+    "excess_mortality_cumulative_per_million" 
+  ) %>% 
+  filter(as.character(location) == "Brazil")
+# Replace NA values with zeros
+our_data[is.na(our_data)] <- 0
+# Convert date column to date format
+our_data$date <- as.Date(our_data$date, format = "%Y-%m-%d")
+# Load the COVID-19 deaths data from WHO
+who_data <- read.csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>% 
+  filter(as.character(Country) == "Brazil")
+# Convert date column to date format
+who_data$Date_reported <- as.Date(who_data$Date_reported, format = "%Y-%m-%d")
+#Mergin into one dataframe
+merged_data <- merge(who_data, our_data, by.x = "Date_reported", by.y = "date")
+#checking
+names(who_data)
+system.time({
+  #Mergin into one dataframe
+  merged_data <- merge(who_data, our_data, by.x = "?..Date_reported", by.y = "date")
+  
+})
+
+#Modelo 01 Time series ARIMA - Mean Squared Error: 1,332,797####
+# Create a time series object with daily deaths data
+merge_ts <- ts(merged_data$Cumulative_deaths, frequency = 7, start = c(2020, 1, 22))
+
+# Check the range of the time series data
+start(merge_ts)
+end(merge_ts)
+
+# Set the end of the training data to be the last day of 2021
+train_end <- end(merge_ts) - 7  # end of training set
+train <- window(merge_ts, end = train_end)
+test <- window(merge_ts, start = train_end + 1)
+
+# Fit an ARIMA model to the training data
+fit <- auto.arima(train)
+
+# Generate forecasts for the test period
+preds <- forecast(fit, h = length(test))
+
+# Plot the actual vs. predicted values - PRECISA MELHORAR A IMAGEM
+plot(merge_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
+lines(preds$mean, col = "red")
+legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+
+# Evaluate the performance of the model using mean squared error
+mse <- mean((preds$mean - test)^2)
+cat("Mean Squared Error:", mse)
+
+#Modelo 02 Time series ARIMA 30 days - Mean Squared Error:4,103,568####
+# Create a time series object with daily deaths data
+merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
+
+# Set plot margins
+par(mar = c(5, 5, 2, 2))
+
+# Plot the time series data
+plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
+
+# Fit an ARIMA model to the time series data
+fit <- auto.arima(merged_ts)
+
+# Generate forecasts for the next 30 days
+preds <- forecast(fit, h = 30)
+
+# Plot the forecasts
+lines(preds$mean, col = "red")
+legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+
+# Evaluate the performance of the model using mean squared error
+mse <- mean((preds$mean - as.vector(tail(merged_ts, 30)))^2)
+cat("Mean Squared Error:", mse)
+
+#Modelo 03 Time series ARIMA 28 days - Mean Squared Error:3,674,819####
+# Create a time series object with daily deaths data
+merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
+
+# Set plot margins
+par(mar = c(5, 5, 2, 2))
+
+# Plot the time series data
+plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
+
+# Fit an ARIMA model to the time series data
+fit <- auto.arima(merged_ts)
+
+# Generate forecasts for the next 28 days
+preds <- forecast(fit, h = 28)
+
+# Plot the forecasts
+lines(preds$mean, col = "red")
+legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+
+# Evaluate the performance of the model using mean squared error
+mse <- mean((preds$mean - as.vector(tail(merged_ts, 28)))^2)
+cat("Mean Squared Error:", mse)
+
+
+#Modelo 04 Time series ARIMA 07 days- Mean Squared Error: 198,069####
+# Create a time series object with daily deaths data
+merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
+
+# Set plot margins
+par(mar = c(5, 5, 2, 2))
+
+# Plot the time series data
+plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
+
+# Fit an ARIMA model to the time series data
+fit <- auto.arima(merged_ts)
+
+# Generate forecasts for the next 7 days
+preds <- forecast(fit, h = 7)
+
+# Plot the forecasts
+lines(preds$mean, col = "red")
+legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+
+# Evaluate the performance of the model using mean squared error
+mse <- mean((preds$mean - as.vector(tail(merged_ts, 7)))^2)
+cat("Mean Squared Error:", mse)
+
+
+#Modelo 05 Time series ARIMA - 4 variables3####
+# Split data into training and test sets
+train <- merged_data[1:100,]
+test <- merged_data[101:150,]
+
+# Fit models and forecast
+fc_ndpm <- forecast(auto.arima(train[, "new_deaths_per_million"]), h = nrow(test))
+fc_ippm <- forecast(auto.arima(train[, "icu_patients_per_million"]), h = nrow(test))
+fc_tbph <- forecast(auto.arima(train[, "total_boosters_per_hundred"]), h = nrow(test))
+
+
+# Compute accuracy measures
+accuracy_ndpm_mae <- accuracy(fc_ndpm, test[, "new_deaths_per_million"])[, "MAE"]
+accuracy_ippm_mae <- accuracy(fc_ippm, test[, "icu_patients_per_million"])[, "MAE"]
+accuracy_tbph_mae <- accuracy(fc_tbph, test[, "total_boosters_per_hundred"])[, "MAE"]
+
+# Compute accuracy measures
+accuracy_ndpm_rmse <- accuracy(fc_ndpm, test[, "new_deaths_per_million"])[, "RMSE"]
+accuracy_ippm_rmse <- accuracy(fc_ippm, test[, "icu_patients_per_million"])[, "RMSE"]
+accuracy_tbph_rmse <- accuracy(fc_tbph, test[, "total_boosters_per_hundred"])[, "RMSE"]
+
+# Print the MAE values
+cat("MAE for new deaths per million:", round(accuracy_ndpm_mae, 2), "\n")
+cat("MAE for ICU patients per million:", round(accuracy_ippm_mae, 2), "\n")
+cat("MAE for total boosters per hundred:", round(accuracy_tbph_mae, 2), "\n")
+
+# Print the RMSE values
+cat("RMSE for new deaths per million:", round(accuracy_ndpm_rmse, 2), "\n")
+cat("RMSE for ICU patients per million:", round(accuracy_ippm_rmse, 2), "\n")
+cat("RMSE for total boosters per hundred:", round(accuracy_tbph_rmse, 2), "\n")
+
+
+#Visualization codes####
+#Example 1 - General Metrics
+# Create a new data frame with only the columns we need for the visualization
+plot_data <- merged_data %>%
+  select(Date_reported, new_deaths_per_million, icu_patients_per_million, total_boosters_per_hundred)
+
+# Reshape data for ggplot2
+plot_data_long <- plot_data %>%
+  pivot_longer(-Date_reported, names_to = "variable", values_to = "value")
+
+# Create the line chart
+ggplot(plot_data_long, aes(x = Date_reported, y = value, color = variable)) +
+  geom_line() +
+  labs(title = "COVID-19 Metrics in Brazil",
+       subtitle = "New deaths per million, ICU patients per million, and total boosters per hundred",
+       y = "",
+       x = "") +
+  theme_minimal()
+
+#Exemplo 02 - Create a data frame of actual and forecasted values for each variable
+results <- data.frame(
+  date = test$Date_reported,
+  actual_ndpm = test$new_deaths_per_million,
+  forecasted_ndpm = fc_ndpm$mean,
+  actual_ippm = test$icu_patients_per_million,
+  forecasted_ippm = fc_ippm$mean,
+  actual_tbph = test$total_boosters_per_hundred,
+  forecasted_tbph = fc_tbph$mean
+)
+
+# Create separate plots for each variable
+ndpm_plot <- ggplot(results, aes(x = date)) +
+  geom_line(aes(y = actual_ndpm), color = "blue") +
+  geom_line(aes(y = forecasted_ndpm), color = "red") +
+  ggtitle("New deaths per million") +
+  ylab("Deaths per million")
+
+ippm_plot <- ggplot(results, aes(x = date)) +
+  geom_line(aes(y = actual_ippm), color = "blue") +
+  geom_line(aes(y = forecasted_ippm), color = "red") +
+  ggtitle("ICU patients per million") +
+  ylab("ICU patients per million")
+
+tbph_plot <- ggplot(results, aes(x = date)) +
+  geom_line(aes(y = actual_tbph), color = "blue") +
+  geom_line(aes(y = forecasted_tbph), color = "red") +
+  ggtitle("Total boosters per hundred") +
+  ylab("Boosters per hundred")
+
+# Arrange plots in a grid
+grid.arrange(ndpm_plot, ippm_plot, tbph_plot, ncol = 1)
+
+
+#Example 3 - Accuracy of Three Key Indicators:
+# Create a dataframe for the accuracy measures
+accuracy_data <- data.frame(
+  Metric = c("MAE", "RMSE"),
+  New_Deaths_Per_Million = c(accuracy_ndpm_mae, accuracy_ndpm_rmse),
+  ICU_Patients_Per_Million = c(accuracy_ippm_mae, accuracy_ippm_rmse),
+  Total_Boosters_Per_Hundred = c(accuracy_tbph_mae, accuracy_tbph_rmse)
+)
+
+# Reshape data for plotting
+accuracy_data_long <- accuracy_data %>% 
+  pivot_longer(
+    cols = c("New_Deaths_Per_Million", "ICU_Patients_Per_Million", "Total_Boosters_Per_Hundred"),
+    names_to = "Variable",
+    values_to = "Accuracy"
+  )
+
+# Create the bar chart
+ggplot(accuracy_data_long, aes(x = Metric, y = Accuracy, fill = Variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("blue", "red", "green")) +
+  labs(title = "Forecast Accuracy by Metric and Variable",
+       subtitle = "MAE and RMSE for New Deaths per Million, ICU Patients per Million, and Total Boosters per Hundred",
+       x = "Metric",
+       y = "Accuracy",
+       fill = "Variable") +
+  theme_minimal()
+
+
+#example 04 
+# Combine actual and forecasted values into one dataframe
+fc_ndpm_df <- data.frame(actual = merged_data$new_deaths_per_million[101:150], predicted = fc_ndpm$mean, lb = fc_ndpm$lower[,2], ub = fc_ndpm$upper[,2])
+fc_ippm_df <- data.frame(actual = merged_data$icu_patients_per_million[101:150], predicted = fc_ippm$mean, lb = fc_ippm$lower[,2], ub = fc_ippm$upper[,2])
+fc_tbph_df <- data.frame(actual = merged_data$total_boosters_per_hundred[101:150], predicted = fc_tbph$mean, lb = fc_tbph$lower[,2], ub = fc_tbph$upper[,2])
+
+# Plot the forecasts using plotly
+fig <- plot_ly() %>%
+  add_trace(data = fc_ndpm_df, x = 1:nrow(fc_ndpm_df), y = fc_ndpm_df$actual, type = "scatter", mode = "lines", line = list(color = "black"), name = "Actual") %>%
+  add_trace(data = fc_ndpm_df, x = 1:nrow(fc_ndpm_df), y = fc_ndpm_df$predicted, type = "scatter", mode = "lines", line = list(color = "blue"), name = "Predicted") %>%
+  add_trace(data = fc_ndpm_df, x = c(1:nrow(fc_ndpm_df), rev(1:nrow(fc_ndpm_df))), y = c(fc_ndpm_df$lb, rev(fc_ndpm_df$ub)), type = "scatter", fill = "tozerox", fillcolor = "gray", line = list(color = "transparent"), showlegend = FALSE) %>%
+  layout(title = "Forecasted Values",
+         xaxis = list(title = "Time (in days)"),
+         yaxis = list(title = "Values"))
+
+fig
+
+
+#example 05
+# Create a Plotly scatter plot of the actual and forecasted values
+p <- plot_ly(data = test, x = ~Date_reported) %>%
+  add_trace(y = ~new_deaths_per_million, name = "Actual", type = "scatter", mode = "lines") %>%
+  add_trace(y = fc_ndpm$mean, name = "Forecast", type = "scatter", mode = "lines") %>%
+  layout(title = "Actual vs. Forecasted New Deaths per Million",
+         xaxis = list(title = "Date"), yaxis = list(title = "New Deaths per Million"))
+p
+
+# Create a Plotly bar chart of the accuracy measures
+accuracy_data <- data.frame(
+  Metric = c("MAE", "RMSE", "MAE", "RMSE", "MAE", "RMSE"),
+  Variable = c("New Deaths per Million", "New Deaths per Million", "ICU Patients per Million", 
+               "ICU Patients per Million", "Total Boosters per Hundred", "Total Boosters per Hundred"),
+  Error = c(accuracy_ndpm_mae, accuracy_ndpm_rmse, accuracy_ippm_mae, accuracy_ippm_rmse, accuracy_tbph_mae, accuracy_tbph_rmse)
+)
+
+p2 <- plot_ly(data = accuracy_data, x = ~Metric, y = ~Error, type = "bar",
+              color = ~Variable) %>%
+  layout(title = "Accuracy Measures",
+         xaxis = list(title = "Accuracy Metric"), yaxis = list(title = "Error"))
+p2
