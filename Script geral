@@ -1,16 +1,20 @@
-#Data loading####
+#Packages and Libraries####
 install.packages("forecast")
 install.packages("tidyverse")
 install.packages("lubridate")
 install.packages("gridExtra")
 install.packages("plotly")
+install.packages("ggplot2")
+
 # Load required libraries
 library(forecast)
 library(tidyverse)
 library(lubridate)
 library(gridExtra)
 library(plotly)
+library(ggplot2)
 
+#Data loading####
 # Load the COVID-19 data from Our World in Data
 our_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv") %>% 
   select(
@@ -60,21 +64,11 @@ who_data <- read.csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>%
 who_data$Date_reported <- as.Date(who_data$Date_reported, format = "%Y-%m-%d")
 #Mergin into one dataframe
 merged_data <- merge(who_data, our_data, by.x = "Date_reported", by.y = "date")
-#checking
-names(who_data)
-system.time({
-  #Mergin into one dataframe
-  merged_data <- merge(who_data, our_data, by.x = "?..Date_reported", by.y = "date")
-  
-})
 
-#Modelo 01 Time series ARIMA - Mean Squared Error: 1,332,797####
+
+#Modelo 01 Time series ARIMA - Mean Squared Error: 107,102.3####
 # Create a time series object with daily deaths data
 merge_ts <- ts(merged_data$Cumulative_deaths, frequency = 7, start = c(2020, 1, 22))
-
-# Check the range of the time series data
-start(merge_ts)
-end(merge_ts)
 
 # Set the end of the training data to be the last day of 2021
 train_end <- end(merge_ts) - 7  # end of training set
@@ -87,24 +81,25 @@ fit <- auto.arima(train)
 # Generate forecasts for the test period
 preds <- forecast(fit, h = length(test))
 
-# Plot the actual vs. predicted values - PRECISA MELHORAR A IMAGEM
-plot(merge_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
-lines(preds$mean, col = "red")
-legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
-
+# Create a plot with different colors for actual and predicted values
+autoplot(merge_ts, series = "Real", color = "black") +
+  autolayer(preds$mean, series = "Previsao", color = "red", size = 1.5) +
+  xlab("Data") +
+  ylab("Obitos Totais") +
+  ggtitle("Real vs Previsao de Obitos Totais diarios de COVID-19 no Brasil") +
+  labs(subtitle = "Modelo 1") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  guides(color = guide_legend(title = NULL)) +
+  scale_color_manual(values = c("Real" = "black", "Previsao" = "red"), 
+                     labels = c("Real", "Previsao"), name = "")
 # Evaluate the performance of the model using mean squared error
 mse <- mean((preds$mean - test)^2)
 cat("Mean Squared Error:", mse)
 
-#Modelo 02 Time series ARIMA 30 days - Mean Squared Error:4,103,568####
+#Modelo 02 Time series ARIMA 30 days - Mean Squared Error:305,454.4####
 # Create a time series object with daily deaths data
 merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
-
-# Set plot margins
-par(mar = c(5, 5, 2, 2))
-
-# Plot the time series data
-plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
 
 # Fit an ARIMA model to the time series data
 fit <- auto.arima(merged_ts)
@@ -112,48 +107,54 @@ fit <- auto.arima(merged_ts)
 # Generate forecasts for the next 30 days
 preds <- forecast(fit, h = 30)
 
-# Plot the forecasts
-lines(preds$mean, col = "red")
-legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+# Create a plot with different colors for actual and predicted values
+autoplot(merged_ts, series = "Real", color = "black") +
+  autolayer(preds$mean, series = "Previsao", color = "red", size = 1.5) +
+  xlab("Data") +
+  ylab("Obitos Totais") +
+  ggtitle("Real vs Previsao de Obitos Totais diarios de COVID-19 no Brasil") +
+  labs(subtitle = "Modelo 2") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  guides(color = guide_legend(title = NULL)) +
+  scale_color_manual(values = c("Real" = "black", "Previsao" = "red"), 
+                     labels = c("Real", "Previsao"), name = "")
 
 # Evaluate the performance of the model using mean squared error
 mse <- mean((preds$mean - as.vector(tail(merged_ts, 30)))^2)
 cat("Mean Squared Error:", mse)
 
-#Modelo 03 Time series ARIMA 28 days - Mean Squared Error:3,674,819####
+#Modelo 03 Time series ARIMA 28 days - Mean Squared Error:256,206.5####
 # Create a time series object with daily deaths data
 merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
-
-# Set plot margins
-par(mar = c(5, 5, 2, 2))
-
-# Plot the time series data
-plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
 
 # Fit an ARIMA model to the time series data
 fit <- auto.arima(merged_ts)
 
-# Generate forecasts for the next 28 days
+# Generate forecasts for the next 30 days
 preds <- forecast(fit, h = 28)
 
-# Plot the forecasts
-lines(preds$mean, col = "red")
-legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+# Create a plot with different colors for actual and predicted values
+autoplot(merged_ts, series = "Real", color = "black") +
+  autolayer(preds$mean, series = "Previsao", color = "red", size = 1.5) +
+  xlab("Data") +
+  ylab("Obitos Totais") +
+  ggtitle("Real vs Previsao de Obitos Totais diarios de COVID-19 no Brasil") +
+  labs(subtitle = "Modelo 3") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  guides(color = guide_legend(title = NULL)) +
+  scale_color_manual(values = c("Real" = "black", "Previsao" = "red"), 
+                     labels = c("Real", "Previsao"), name = "")
 
 # Evaluate the performance of the model using mean squared error
 mse <- mean((preds$mean - as.vector(tail(merged_ts, 28)))^2)
 cat("Mean Squared Error:", mse)
 
 
-#Modelo 04 Time series ARIMA 07 days- Mean Squared Error: 198,069####
+#Modelo 04 Time series ARIMA 07 days- Mean Squared Error: 972.4083####
 # Create a time series object with daily deaths data
 merged_ts <- ts(merged_data$total_deaths, frequency = 7, start = c(2020, 1))
-
-# Set plot margins
-par(mar = c(5, 5, 2, 2))
-
-# Plot the time series data
-plot(merged_ts, main = "Obitos Totais diarios de COVID-19 no Brasil", xlab = "Date", ylab = "Total Deaths")
 
 # Fit an ARIMA model to the time series data
 fit <- auto.arima(merged_ts)
@@ -161,9 +162,18 @@ fit <- auto.arima(merged_ts)
 # Generate forecasts for the next 7 days
 preds <- forecast(fit, h = 7)
 
-# Plot the forecasts
-lines(preds$mean, col = "red")
-legend("topright", legend = c("Actual", "Forecast"), col = c("black", "red"), lty = 1)
+# Create a plot with different colors for actual and predicted values
+autoplot(merged_ts, series = "Real", color = "black") +
+  autolayer(preds$mean, series = "Previsao", color = "red", size = 1.5) +
+  xlab("Data") +
+  ylab("Obitos Totais") +
+  ggtitle("Real vs Previsao de Obitos Totais diarios de COVID-19 no Brasil") +
+  labs(subtitle = "Modelo 3") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  guides(color = guide_legend(title = NULL)) +
+  scale_color_manual(values = c("Real" = "black", "Previsao" = "red"), 
+                     labels = c("Real", "Previsao"), name = "")
 
 # Evaluate the performance of the model using mean squared error
 mse <- mean((preds$mean - as.vector(tail(merged_ts, 7)))^2)
@@ -215,8 +225,8 @@ plot_data_long <- plot_data %>%
 # Create the line chart
 ggplot(plot_data_long, aes(x = Date_reported, y = value, color = variable)) +
   geom_line() +
-  labs(title = "COVID-19 Metrics in Brazil",
-       subtitle = "New deaths per million, ICU patients per million, and total boosters per hundred",
+  labs(title = "COVID-19 no Brasil",
+       subtitle = "Novas mortes por milhao, Pacientes de UTI por milhao e doses de reforco por milhao",
        y = "",
        x = "") +
   theme_minimal()
@@ -283,23 +293,29 @@ ggplot(accuracy_data_long, aes(x = Metric, y = Accuracy, fill = Variable)) +
        fill = "Variable") +
   theme_minimal()
 
+#Exemple 04
+# Define the time horizon for the forecast
+horizon14 <- 14
+horizon28 <- 28
 
-#example 04 
-# Combine actual and forecasted values into one dataframe
-fc_ndpm_df <- data.frame(actual = merged_data$new_deaths_per_million[101:150], predicted = fc_ndpm$mean, lb = fc_ndpm$lower[,2], ub = fc_ndpm$upper[,2])
-fc_ippm_df <- data.frame(actual = merged_data$icu_patients_per_million[101:150], predicted = fc_ippm$mean, lb = fc_ippm$lower[,2], ub = fc_ippm$upper[,2])
-fc_tbph_df <- data.frame(actual = merged_data$total_boosters_per_hundred[101:150], predicted = fc_tbph$mean, lb = fc_tbph$lower[,2], ub = fc_tbph$upper[,2])
+# Fit models and forecast
+fc_ndpm14 <- forecast(auto.arima(train[, "new_deaths_per_million"]), h = horizon14)
+fc_ndpm28 <- forecast(auto.arima(train[, "new_deaths_per_million"]), h = horizon28)
 
-# Plot the forecasts using plotly
-fig <- plot_ly() %>%
-  add_trace(data = fc_ndpm_df, x = 1:nrow(fc_ndpm_df), y = fc_ndpm_df$actual, type = "scatter", mode = "lines", line = list(color = "black"), name = "Actual") %>%
-  add_trace(data = fc_ndpm_df, x = 1:nrow(fc_ndpm_df), y = fc_ndpm_df$predicted, type = "scatter", mode = "lines", line = list(color = "blue"), name = "Predicted") %>%
-  add_trace(data = fc_ndpm_df, x = c(1:nrow(fc_ndpm_df), rev(1:nrow(fc_ndpm_df))), y = c(fc_ndpm_df$lb, rev(fc_ndpm_df$ub)), type = "scatter", fill = "tozerox", fillcolor = "gray", line = list(color = "transparent"), showlegend = FALSE) %>%
-  layout(title = "Forecasted Values",
-         xaxis = list(title = "Time (in days)"),
-         yaxis = list(title = "Values"))
+# Plot the forecasts
+autoplot(fc_ndpm14) + 
+  ggtitle("Novos Obitos por Milhao + Previsao de 14 dias") + 
+  labs(subtitle = "Modelo 05") +
+  xlab("Data") + ylab("Valores") +
+  geom_vline(xintercept = as.numeric(test[1, "date"]), color = "red") # Add a vertical line to indicate the start of the test set
 
-fig
+# Plot the forecasts
+autoplot(fc_ndpm28) + 
+  ggtitle("Novos Obitos por Milhao + Previsao de 28 dias") + 
+  labs(subtitle = "Modelo 05") +
+  xlab("Data") + ylab("Valores") +
+  geom_vline(xintercept = as.numeric(test[1, "date"]), color = "red") # Add a vertical line to indicate the start of the test set
+
 
 
 #example 05
@@ -307,7 +323,7 @@ fig
 p <- plot_ly(data = test, x = ~Date_reported) %>%
   add_trace(y = ~new_deaths_per_million, name = "Actual", type = "scatter", mode = "lines") %>%
   add_trace(y = fc_ndpm$mean, name = "Forecast", type = "scatter", mode = "lines") %>%
-  layout(title = "Actual vs. Forecasted New Deaths per Million",
+  layout(title = "Real vs. Previsao Novas mortes por milhao",
          xaxis = list(title = "Date"), yaxis = list(title = "New Deaths per Million"))
 p
 
@@ -321,6 +337,7 @@ accuracy_data <- data.frame(
 
 p2 <- plot_ly(data = accuracy_data, x = ~Metric, y = ~Error, type = "bar",
               color = ~Variable) %>%
-  layout(title = "Accuracy Measures",
-         xaxis = list(title = "Accuracy Metric"), yaxis = list(title = "Error"))
+  layout(title = "Medidas de confianca",
+         xaxis = list(title = "Variaveis"), yaxis = list(title = "Valor"))
 p2
+
